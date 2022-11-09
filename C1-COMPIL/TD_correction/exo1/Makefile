@@ -15,11 +15,11 @@ build/lib/libcustom.a: code_lib.c etape_debut header.h
 	$(CC) -c $< -o $(B)/code_lib.o
 	$(AR) rcs -o $@ $(B)/code_lib.o
 
-build/bin/program: main.c build/lib/libcustom.so build/lib/libcustom.a
+build/bin/program: main.c build/lib/libcustom.so
 	$(CC) -o $@ $< -I. -L./build/lib -lcustom -Wl,-rpath=./build/lib
-	$(CC) -o $@_static -static $< -I. -L./build/lib -lcustom
+	#$(CC) -o $@_static -static $< -I. -L./build/lib -lcustom
 
-etape_fin:
+clean:
 	rm -rf $(B)/*
 
 .PHONY: etape_debut etape_fin
