@@ -81,15 +81,30 @@ int main(int argc, char const *argv[])
             break;
         }
 
-        char toto[128];
+        i++;
 
-        snprintf(toto, 128, "COUCOU TOI %d\n", ++i);
+        pid_t pid = fork();
 
-        write(client_fd, toto, strlen(toto));
-        close(client_fd);
+        if(!pid)
+        {
+            char toto[128];
+
+            snprintf(toto, 128, "COUCOU TOI %d\n", i);
+
+            write(client_fd, toto, strlen(toto));
+
+            close(client_fd);
+            return 0;
+        }
+        else
+        {
+            close(client_fd);
+        }
+
+
     }
 
-    close(sock);
+
 
     return 0;
 }

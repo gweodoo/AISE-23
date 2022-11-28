@@ -6,6 +6,36 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <pthread.h>
+#include <stdlib.h>
+
+struct client_desc
+{
+    int client_fd;
+    int i;
+};
+
+
+void * client_func(void *pcli)
+{
+    struct client_desc * cli = (struct client_desc *)pcli;
+
+    char toto[128];
+
+    snprintf(toto, 128, "COUCOU TOI %d\n", cli->i);
+
+	int i;
+
+	for(i = 0; i < 1024; i++)
+    		write(cli->client_fd, toto, strlen(toto));
+    close(cli->client_fd);
+
+    free(cli);
+
+    return NULL;
+}
+
+
 
 int main(int argc, char const *argv[])
 {
@@ -81,15 +111,22 @@ int main(int argc, char const *argv[])
             break;
         }
 
-        char toto[128];
+        i++;
 
-        snprintf(toto, 128, "COUCOU TOI %d\n", ++i);
+        struct client_desc * new_desc = malloc(sizeof(struct client_desc));
 
-        write(client_fd, toto, strlen(toto));
-        close(client_fd);
+        new_desc->client_fd = client_fd;
+        new_desc->i = i;
+
+        pthread_t th;
+        pthread_attr_t attr;
+	pthread_attr_init(&attr);
+	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+	pthread_create(&th, &attr, client_func, (void *)new_desc);
+	
     }
 
-    close(sock);
+	close(sock);
 
     return 0;
 }
