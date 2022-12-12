@@ -2,6 +2,8 @@
 #include <sys/shm.h>
 #include <string.h>
 #include <sys/wait.h>
+#include <sys/time.h>
+
 #include <unistd.h>
 #include <stdio.h>
 #include <sys/mman.h>
@@ -18,6 +20,14 @@ typedef enum{
 }is_rdy_t;
 
 
+double get_time()
+{
+	struct timeval val;
+	gettimeofday(&val, NULL);
+	return (double)val.tv_sec + 1e-6 * val.tv_usec;
+}
+
+
 
 struct shm_segment
 {
@@ -26,7 +36,7 @@ struct shm_segment
 	char payload[0];	
 };
 
-#define BUFF_SIZE 100*1024*1024
+#define BUFF_SIZE 1024*1024*1024
 
 
 #define SHM_SIZE 1024*1024
@@ -53,9 +63,9 @@ static inline void wait_for_state(struct shm_segment *base, is_rdy_t type)
 
 
 static inline size_t send_at(struct shm_segment * base, void * src,
-	       	   	     size_t size)
+		size_t size)
 {
-	
+
 	wait_for_state(base, RECV_RDY);
 
 	pthread_spin_lock(&base->lock);
@@ -67,7 +77,6 @@ static inline size_t send_at(struct shm_segment * base, void * src,
 
 	pthread_spin_unlock(&base->lock);
 
-	printf("SENT : %ld\n", to_send);
 
 	return to_send;	
 }
@@ -75,10 +84,10 @@ static inline size_t send_at(struct shm_segment * base, void * src,
 
 
 static inline size_t recv_at(struct shm_segment * base, void * dest,
-	       	   	     size_t size)
+		size_t size)
 {
-	
-	
+
+
 	size_t to_recv = (size < PL_SIZE) ? size : PL_SIZE;
 
 	wait_for_state(base, SENDER_RDY);
@@ -90,13 +99,12 @@ static inline size_t recv_at(struct shm_segment * base, void * dest,
 
 	pthread_spin_unlock(&base->lock);
 
-	printf("RECV : %ld\n", to_recv);
 	return to_recv;	
 }
 
 int main(int argc, char **argv)
 {
-	int shm = shm_open("/totolol", O_RDWR | O_CREAT, 0600);
+	int shm = shm_open("/toto", O_RDWR | O_CREAT | O_TRUNC, 0600);
 
 	if( shm < 0)
 	{
@@ -110,7 +118,7 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
-	
+
 	int pid = fork();
 
 	struct shm_segment *val = (struct shm_segment*) mmap(NULL, SHM_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, shm, 0);
@@ -131,9 +139,9 @@ int main(int argc, char **argv)
 		perror("malloc");
 		return 1;
 	}
-	
+
 	size_t iter;
-	
+
 	if( pid == 0 )
 	{
 		/* Set bad values */
@@ -147,7 +155,6 @@ int main(int argc, char **argv)
 
 		while((total - received) != 0)
 		{
-			fprintf(stderr, "RECEIVED %ld\n", received);
 			received += recv_at(val, hundredmeg + received, total - received);
 		}
 
@@ -175,11 +182,17 @@ int main(int argc, char **argv)
 		size_t total = BUFF_SIZE;
 		size_t sent = 0;
 
+
+		double begin = get_time();
 		while((total - sent) != 0)
 		{
-			fprintf(stderr, "SENT %ld\n", sent);
 			sent += send_at(val, hundredmeg + sent, total - sent);
 		}
+		double end = get_time();
+
+		wait(NULL);
+
+		printf("Sent %f MB in %f seconds == %f MB/s\n", BUFF_SIZE/(1024.0*1024.0), end-begin, (BUFF_SIZE / (1024.0*1024.0)) / (end - begin) );
 
 	}
 
